@@ -6,6 +6,7 @@ import { body, validationResult } from 'express-validator';
 import UserModel from './models/user.js'; // убедитесь, что путь к модели корректен
 import data from './data.json'assert { type: "json" };
 import cors from 'cors'
+import nodemailer from 'nodemailer';
 
 mongoose 
 .connect('mongodb+srv://admin:wwwwww@cluster0.weppimj.mongodb.net/spare?retryWrites=true&w=majority&appName=Cluster0' ) 
@@ -100,6 +101,82 @@ app.post('/login',
     }
 );
 
+app.post('/add-to-basket' , async(req , res )=>{
+    const { username, product } = req.body;
+
+    if (!username || !product) {
+        return res.status(400).send({ message: 'Username and product are required' });
+    }
+
+    try {
+        const user = await UserModel.findOne({ username });
+
+        if (!user) {
+            return res.status(404).send({message: 'Пользователь не найден '})
+        }
+
+        user.basket.push(product);
+        await user.save();
+
+        res.status(200).send({ message: 'Product added to basket', basket: user.basket });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: 'Server error' });
+    }
+
+})
+app.get('/user-basket', async(req , res )=>{
+   
+    try {
+         const {userName} = req.body
+    const user = await UserModel.findOne({userName})
+    if (!user ){
+        return res.status(404).send({message: 'Пользователь не найден '})
+    }
+    res.send(user.basket)
+    } catch (error) {
+        res.status(500).send({ message: 'Server error' });
+    }
+})
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'your-email@gmail.com',
+        pass: 'your-email-password'
+    }
+});
+
+app.post('/get-order', async (req, res) => {
+    const {username} = req.body;
+
+    try {
+        const user = await UserModel.findOne({username})
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const basketItems = user.basket;
+
+        // Send email
+        const mailOptions = {
+            from: 'ssalamus@inbox.ru',
+            to: 'kjkszpj2025',
+            subject: `Order from ${user.username}`,
+            text: `User ${user.username} has placed an order. Items: ${JSON.stringify(basketItems, null, 2)}`
+        };
+
+        await transporter.sendMail(mailOptions);
+
+        // Clear user's basket
+        user.basket = [];
+        await user.save();
+
+        res.status(200).json({ message: 'Order placed successfully' });
+    } catch (err) {
+        res.status(500).json({ message: 'Server error', error: err });
+    }
+});
 const PORT = process.env.PORT || 4444;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
