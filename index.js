@@ -30,7 +30,7 @@ app.post('/register',
             return res.status(400).json({ errors: errors.array() });
         }
 
-        const { username, email, password } = req.body;
+        const { username, email, password , phone} = req.body;
 
         try {
             // Проверка на существование пользователя с таким же email или username
@@ -46,7 +46,8 @@ app.post('/register',
             const newUser = new UserModel({
                 username,
                 email,
-                password: hashedPassword
+                password: hashedPassword,
+                phone
             });
 
 
@@ -125,32 +126,29 @@ app.post('/add-to-basket' , async(req , res )=>{
     }
 
 })
-app.get('/user-basket', async(req , res )=>{
-   
+app.get('/user/:username/basket', async (req, res) => {
     try {
-         const {userName} = req.body
-    const user = await UserModel.findOne({userName})
-    if (!user ){
-        return res.status(404).send({message: 'Пользователь не найден '})
-    }
-    res.send(user.basket)
+      const { username } = req.params;
+      const user = await UserModel.findOne({ username });
+  
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+  
+      res.json(user.basket);
     } catch (error) {
-        res.status(500).send({ message: 'Server error' });
+      console.error(error);
+      res.status(500).json({ message: 'Server error' });
     }
-})
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: 'your-email@gmail.com',
-        pass: 'your-email-password'
-    }
-});
+  });
+
+
 
 app.post('/get-order', async (req, res) => {
-    const {username} = req.body;
+    const { username } = req.body;
 
     try {
-        const user = await UserModel.findOne({username})
+        const user = await UserModel.findOne({ username });
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
@@ -158,17 +156,23 @@ app.post('/get-order', async (req, res) => {
 
         const basketItems = user.basket;
 
-        // Send email
-        const mailOptions = {
-            from: 'ssalamus@inbox.ru',
-            to: 'kjkszpj2025',
-            subject: `Order from ${user.username}`,
-            text: `User ${user.username} has placed an order. Items: ${JSON.stringify(basketItems, null, 2)}`
-        };
+        const message = `
+          Заказ от пользователя: ${user.username}
+          Телефон: ${user.phone}
+          Почта: ${user.email}
+          Товары:
+          ${basketItems.map(item => `Наименование: ${item.Наименование}, Каталог: ${item.Каталог}, Производитель: ${item.Производитель}, Артикул: ${item.Артикул}, Цена: ${item.РОЗНИЦА}`).join('\n')}
+          Общая сумма: ${basketItems.reduce((total, item) => total + item.РОЗНИЦА, 0)}
+        `;
 
-        await transporter.sendMail(mailOptions);
+        const botToken = '6905722948:AAFcLUxKVCJ1tIF03S8l2xLbjo50buyYYoU';
+        const chatId = '1137493485';
 
-        // Clear user's basket
+        await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            chat_id: chatId,
+            text: message,
+        });
+
         user.basket = [];
         await user.save();
 
@@ -177,6 +181,10 @@ app.post('/get-order', async (req, res) => {
         res.status(500).json({ message: 'Server error', error: err });
     }
 });
+
+app.delete('clear-order' , (req , res )=>{
+
+})
 const PORT = process.env.PORT || 4444;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

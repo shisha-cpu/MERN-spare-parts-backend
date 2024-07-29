@@ -1,6 +1,6 @@
+import fs from 'fs';
+import xlsx from 'xlsx';
 
-import fs from 'fs'
-import xlsx from 'xlsx'
 // Путь к файлу
 const filePath = './Файл топ для сайта.xlsx';
 
@@ -12,8 +12,9 @@ const sheet = workbook.Sheets[sheetName];
 // Преобразование данных в JSON
 const data = xlsx.utils.sheet_to_json(sheet);
 
-// Отбор нужных колонок
-const filteredData = data.map(item => ({
+// Отбор нужных колонок и добавление ID
+const filteredData = data.map((item, index) => ({
+  'id': index + 1, // Добавление уникального идентификатора
   'Каталог': item['Каталог'] || 'Н/Д',
   'Артикул': item['Артикул'] || 'Н/Д',
   'Производитель': item['Производитель'] || 'Н/Д',
