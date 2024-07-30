@@ -128,20 +128,61 @@ app.post('/add-to-basket' , async(req , res )=>{
 })
 app.get('/user/:username/basket', async (req, res) => {
     try {
-      const { username } = req.params;
-      const user = await UserModel.findOne({ username });
-  
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-  
-      res.json(user.basket);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server error' });
-    }
-  });
+        const { username } = req.params;
+        const user = await UserModel.findOne({ username });
 
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json(user.basket);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+app.get('/user/:username/clear-basket', async (req, res) => {
+    try {
+        const { username } = req.params;
+        const user = await UserModel.findOne({ username });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        user.basket = []
+        res.json(user.basket);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+app.delete('/:username/basket/:index', async (req, res) => {
+    const { username, index } = req.params;
+
+    try {
+        // Найдите пользователя по имени
+        const user = await UserModel.findOne({ username });
+        if (!user) {
+            return res.status(404).json({ message: 'Пользователь не найден' });
+        }
+
+        // Проверьте, что индекс допустим
+        if (index < 0 || index >= user.basket.length) {
+            return res.status(400).json({ message: 'Неверный индекс' });
+        }
+
+        // Удалите элемент из корзины
+        user.basket.splice(index, 1);
+
+        // Сохраните изменения
+        await user.save();
+
+        res.status(200).json({ message: 'Товар успешно удален из корзины' });
+    } catch (error) {
+        res.status(500).json({ message: 'Ошибка при удалении товара из корзины', error });
+    }
+});
 
 
 app.post('/get-order', async (req, res) => {
@@ -151,34 +192,18 @@ app.post('/get-order', async (req, res) => {
         const user = await UserModel.findOne({ username });
 
         if (!user) {
+            console.log(`User ${username} not found`);
             return res.status(404).json({ message: 'User not found' });
         }
 
-        const basketItems = user.basket;
-
-        const message = `
-          Заказ от пользователя: ${user.username}
-          Телефон: ${user.phone}
-          Почта: ${user.email}
-          Товары:
-          ${basketItems.map(item => `Наименование: ${item.Наименование}, Каталог: ${item.Каталог}, Производитель: ${item.Производитель}, Артикул: ${item.Артикул}, Цена: ${item.РОЗНИЦА}`).join('\n')}
-          Общая сумма: ${basketItems.reduce((total, item) => total + item.РОЗНИЦА, 0)}
-        `;
-
-        const botToken = '6905722948:AAFcLUxKVCJ1tIF03S8l2xLbjo50buyYYoU';
-        const chatId = '1137493485';
-
-        await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-            chat_id: chatId,
-            text: message,
-        });
-
+        // Очистка корзины
         user.basket = [];
         await user.save();
 
         res.status(200).json({ message: 'Order placed successfully' });
     } catch (err) {
-        res.status(500).json({ message: 'Server error', error: err });
+        console.error('Error placing order:', err);
+        res.status(500).json({ message: 'Server error', error: err.message });
     }
 });
 
