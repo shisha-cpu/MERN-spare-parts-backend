@@ -10,11 +10,11 @@ import nodemailer from 'nodemailer';
 
 mongoose 
 .connect('mongodb+srv://admin:wwwwww@cluster0.weppimj.mongodb.net/spare?retryWrites=true&w=majority&appName=Cluster0' ) 
- .then(()=> console.log('DB okey')) 
- .catch((err)=> console.log('db error' , err))
+.then(()=> console.log('DB okey')) 
+.catch((err)=> console.log('db error' , err))
 
 
- const app = express();
+const app = express();
 app.use(express.json());
 app.use(cors())
 const SECRET_KEY = '4dcd4da582546078d6a3573ca9c7e528655f35157e2e5c2da411d9264ff0cf5d114ad2e897fcc8621e9a13a32be2063beff5b1602ec88f31e4334c774eaf9857a0500a561f29ab1b57f15a1562944aa6418f0283145d7690efabfe10f37011d587092d1a70c8683ef94e19c7d45d6a8582fb768a9be56b00e595a06766e967aae9371fc2864fca4f55ffad353d7bf3e015f9a0cb6e4b38fd5c662eaf99f19f4234781b6804c3441dde602b89bf0d2bf753ecd04a3167f6b772b8ca7de3d054282ccccf62857f0304b4968094ef019d0286009bdf5dbbc0c37e6a109aed76391bce60c676d499577ac0ab581aa46de06c67bd538e2e2b202f072647aac3be9426'; // замените на ваш секретный ключ
@@ -102,30 +102,30 @@ app.post('/login',
     }
 );
 
-app.post('/add-to-basket' , async(req , res )=>{
-    const { username, product } = req.body;
-
-    if (!username || !product) {
-        return res.status(400).send({ message: 'Username and product are required' });
+app.post('/add-to-basket', async (req, res) => {
+    const { username, product, count } = req.body;
+  
+    if (!username || !product || !Number.isInteger(count) || count <= 0) {
+      return res.status(400).send({ message: 'Username, product, and valid count are required' });
     }
-
+  
     try {
-        const user = await UserModel.findOne({ username });
-
-        if (!user) {
-            return res.status(404).send({message: 'Пользователь не найден '})
-        }
-
-        user.basket.push(product);
-        await user.save();
-
-        res.status(200).send({ message: 'Product added to basket', basket: user.basket });
+      const user = await UserModel.findOne({ username });
+  
+      if (!user) {
+        return res.status(404).send({ message: 'Пользователь не найден' });
+      }
+  
+      user.basket.push({ product, count });
+      await user.save();
+  
+      res.status(200).send({ message: 'Product added to basket', basket: user.basket });
     } catch (error) {
-        console.error(error);
-        res.status(500).send({ message: 'Server error' });
+      console.error(error);
+      res.status(500).send({ message: 'Server error' });
     }
-
-})
+  });
+  
 app.get('/user/:username/basket', async (req, res) => {
     try {
         const { username } = req.params;
@@ -207,9 +207,42 @@ app.post('/get-order', async (req, res) => {
     }
 });
 
-app.delete('clear-order' , (req , res )=>{
+app.put('/:username/basket/:index', async (req, res) => {
+    const { username, index } = req.params;
+    const { count } = req.body;
 
-})
+    if (count < 1) {
+        return res.status(400).json({ message: 'Количество не может быть меньше 1' });
+    }
+
+    try {
+        const user = await UserModel.findOne({ username });
+        if (!user) {
+            return res.status(404).json({ message: 'Пользователь не найден' });
+        }
+
+      
+        if (index < 0 || index >= user.basket.length) {
+            return res.status(400).json({ message: 'Неверный индекс' });
+        }
+
+       
+        user.basket[index].count = count;
+
+
+        await user.save();
+
+        res.status(200).json({ message: 'Количество товара обновлено' });
+    } catch (error) {
+        res.status(500).json({ message: 'Ошибка при обновлении количества товара', error });
+    }
+});
+
+
+
+
+
+
 const PORT = process.env.PORT || 4444;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
