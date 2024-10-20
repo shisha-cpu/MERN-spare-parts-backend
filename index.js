@@ -8,6 +8,11 @@ import data from './data.json'assert { type: "json" };
 import cors from 'cors'
 import nodemailer from 'nodemailer';
 
+import XLSX from 'xlsx';
+import fs from 'fs';
+import path from 'path';
+import axios from 'axios';
+import FormData from 'form-data';
 mongoose 
 .connect('mongodb+srv://admin:wwwwww@cluster0.weppimj.mongodb.net/spare?retryWrites=true&w=majority&appName=Cluster0' ) 
 .then(()=> console.log('DB okey')) 
@@ -21,7 +26,7 @@ const SECRET_KEY = '4dcd4da582546078d6a3573ca9c7e528655f35157e2e5c2da411d9264ff0
 app.get('/data', (req, res) => {
     res.json(data); // Send data as JSON response
 });
-// Маршрут для регистрации пользователей
+
 app.post('/register',
 
     async (req, res) => {
@@ -30,7 +35,12 @@ app.post('/register',
             return res.status(400).json({ errors: errors.array() });
         }
 
-        const { username, email, password , phone} = req.body;
+        const { username, email, password, phone } = req.body;
+
+        // Проверка на наличие пароля
+        if (!password) {
+            return res.status(400).json({ message: 'Password is required' });
+        }
 
         try {
             // Проверка на существование пользователя с таким же email или username
@@ -42,14 +52,12 @@ app.post('/register',
             // Хэширование пароля
             const hashedPassword = await bcrypt.hash(password, 10);
 
-
             const newUser = new UserModel({
                 username,
                 email,
                 password: hashedPassword,
                 phone
             });
-
 
             await newUser.save();
 
@@ -60,8 +68,62 @@ app.post('/register',
         }
     }
 );
+app.post('/api/send-order', async (req, res) => {
+    const { username, phone, email, orderDetails, totalOrderSum } = req.body;
 
-// Маршрут для входа пользователей
+    try {
+        // Создание Excel-файла
+        const excelData = [
+            ['Заказ от пользователя:', username],
+            ['Телефон:', phone],
+            ['Почта:', email],
+            ['Общая сумма:', totalOrderSum],
+            [],
+            ['Артикул', 'Наименование', 'Количество', 'Цена', 'Сумма'],
+            ...orderDetails.map(item => [item.article, item.name, item.count, item.price, item.total])
+        ];
+
+        const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Order");
+
+        const filePath = path.resolve(`order_${username}.xlsx`);
+        XLSX.writeFile(workbook, filePath);
+
+        // Отправка файла в Telegram
+        const botToken = '6905722948:AAFcLUxKVCJ1tIF03S8l2xLbjo50buyYYoU';
+        const chatId = '1137493485';
+        const formData = new FormData();
+        formData.append("chat_id", chatId);
+        formData.append("document", fs.createReadStream(filePath));
+
+        await axios.post(`https://api.telegram.org/bot${botToken}/sendDocument`, formData, {
+            headers: formData.getHeaders()
+        });
+
+        // Удаляем файл после отправки
+        fs.unlinkSync(filePath);
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error(error);
+        res.json({ success: false, message: 'Ошибка при отправке заказа' });
+    }
+});
+
+// app.delete('/:email/basket', async (req, res) => {
+//     const { email } = req.params;
+//     const user = await UserModel.findOne({ email }); 
+//     if (user) {
+//         user.basket = [];
+//         await user.save(); 
+//         res.send({ message: 'Корзина успешно очищена' });
+//     } else {
+//         res.status(404).send({ message: 'Пользователь не найден' });
+//     }
+// });
+
+
 app.post('/login',
     // Проверка и валидация входных данных
     body('email').isEmail().withMessage('Invalid email address'),
@@ -101,30 +163,38 @@ app.post('/login',
         }
     }
 );
-
 app.post('/add-to-basket', async (req, res) => {
     const { username, product, count } = req.body;
-  
+
     if (!username || !product || !Number.isInteger(count) || count <= 0) {
-      return res.status(400).send({ message: 'Username, product, and valid count are required' });
+        return res.status(400).send({ message: 'Username, product, and valid count are required' });
     }
-  
+
     try {
-      const user = await UserModel.findOne({ username });
-  
-      if (!user) {
-        return res.status(404).send({ message: 'Пользователь не найден' });
-      }
-  
-      user.basket.push({ product, count });
-      await user.save();
-  
-      res.status(200).send({ message: 'Product added to basket', basket: user.basket });
+        const user = await UserModel.findOne({ username });
+        if (!user) return res.status(404).send({ message: 'User not found' });
+
+        const existingItem = user.basket.find(item => item.product.id === product.id);
+
+        if (existingItem) {
+            existingItem.count += count;
+            console.log(`Updated product ${product.id} count to ${existingItem.count}`);
+        } else {
+            user.basket.push({ product, count });
+            console.log(`Added new product ${product.id} to basket`);
+        }
+
+        await user.save();
+        console.log('Basket successfully saved to database.');
+        res.status(200).send({ message: 'Product added to basket', basket: user.basket });
     } catch (error) {
-      console.error(error);
-      res.status(500).send({ message: 'Server error' });
+        console.error('Error adding product to basket:', error);
+        res.status(500).send({ message: 'Internal server error' });
     }
-  });
+});
+
+
+
   
 app.get('/user/:username/basket', async (req, res) => {
     try {
@@ -184,28 +254,79 @@ app.delete('/:username/basket/:index', async (req, res) => {
     }
 });
 
-
 app.post('/get-order', async (req, res) => {
-    const { username } = req.body;
+    const { email } = req.body;
 
     try {
-        const user = await UserModel.findOne({ username });
+        const user = await UserModel.findOne({ email });
 
         if (!user) {
-            console.log(`User ${username} not found`);
+            console.log(`User ${email} not found`);
             return res.status(404).json({ message: 'User not found' });
         }
+
+        // Сохранение заказа в истории заказов
+        user.orderHistory.push({
+            products: [...user.basket], // Копируем текущие элементы из корзины
+            orderDate: new Date()
+        });
 
         // Очистка корзины
         user.basket = [];
         await user.save();
 
-        res.status(200).json({ message: 'Order placed successfully' });
+        res.status(200).json({ message: 'Order placed successfully', orderHistory: user.orderHistory });
     } catch (err) {
         console.error('Error placing order:', err);
         res.status(500).json({ message: 'Server error', error: err.message });
     }
 });
+
+app.put('/user/:username/update', async (req, res) => {
+    const { username } = req.params;
+    const { email, phone, newUsername } = req.body; // Добавляем newUsername для изменения имени
+
+    try {
+        const user = await UserModel.findOne({ username });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Обновляем данные
+        if (email) {
+            user.email = email;
+        }
+        if (phone) {
+            user.phone = phone;
+        }
+        if (newUsername) {
+            user.username = newUsername; 
+        }
+
+        await user.save();
+        res.status(200).json({ message: 'User details updated successfully', user });
+    } catch (error) {
+        console.error('Error updating user details:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+app.get('/user/:username/order-history', async (req, res) => {
+    try {
+        const { username } = req.params;
+        const user = await UserModel.findOne({ username });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json(user.orderHistory);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 
 app.put('/:username/basket/:index', async (req, res) => {
     const { username, index } = req.params;

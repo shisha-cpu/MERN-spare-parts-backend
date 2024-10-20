@@ -1,7 +1,7 @@
 import { request } from "express";
 import mongoose from "mongoose";
 
-const userSchema  = mongoose.Schema({
+const userSchema = mongoose.Schema({
     username: {
         type: String,
         required: true,
@@ -16,23 +16,45 @@ const userSchema  = mongoose.Schema({
         required: true,
         unique: true
     },
-    phone:{
-        type : String , 
-        request : true
+    phone: {
+        type: String,
+        required: true
     },
+    wholesale: {
+        type: Boolean,
+        default: false
+    },
+    basket: [{
+        product: {
+            type: Object,
+            required: true
+        },
+        count: {
+            type: Number,
+            required: true
+        }
+    }],
+    orderHistory: [{
+        orderDate: {
+            type: Date,
+            default: Date.now
+        },
+        products: [{
+            product: {
+                type: Object,
+                required: true
+            },
+            count: {
+                type: Number,
+                required: true
+            }
+        }]
+    }],
     createdAt: {
         type: Date,
         default: Date.now
-    },
-    wholesale : {
-        type : Boolean,
-        required : true,
-        default : false
-    },
-    basket : {
-        type : Array,
     }
-})
+});
 
-const UserModel = mongoose.model('User' , userSchema)
-export default UserModel
+const UserModel = mongoose.model('User', userSchema);
+export default UserModel;
