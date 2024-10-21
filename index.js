@@ -327,6 +327,55 @@ app.get('/user/:username/order-history', async (req, res) => {
     }
 });
 
+app.put('/:username/basket/:index/increase', async (req, res) => {
+    const { username, index } = req.params;
+
+    try {
+        const user = await UserModel.findOne({ username });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (index < 0 || index >= user.basket.length) {
+            return res.status(400).json({ message: 'Invalid basket index' });
+        }
+
+        user.basket[index].count += 1;
+
+        await user.save();
+        res.status(200).json({ message: 'Product count increased', basket: user.basket });
+    } catch (error) {
+        console.error('Error increasing product count:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+app.put('/:username/basket/:index/decrease', async (req, res) => {
+    const { username, index } = req.params;
+
+    try {
+        const user = await UserModel.findOne({ username });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (index < 0 || index >= user.basket.length) {
+            return res.status(400).json({ message: 'Invalid basket index' });
+        }
+
+        if (user.basket[index].count > 1) {
+            user.basket[index].count -= 1;
+        } else {
+            return res.status(400).json({ message: 'Product count cannot be less than 1' });
+        }
+
+        await user.save();
+        res.status(200).json({ message: 'Product count decreased', basket: user.basket });
+    } catch (error) {
+        console.error('Error decreasing product count:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
 
 app.put('/:username/basket/:index', async (req, res) => {
     const { username, index } = req.params;
