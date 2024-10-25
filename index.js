@@ -68,7 +68,7 @@ app.post('/register',
         }
     }
 );
-app.post('/api/send-order', async (req, res) => {
+app.post('/api/send-order', async (req, res) => { 
     const { username, phone, email, orderDetails, totalOrderSum } = req.body;
 
     try {
@@ -87,7 +87,11 @@ app.post('/api/send-order', async (req, res) => {
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Order");
 
-        const filePath = path.resolve(`order_${username}.xlsx`);
+        // Получаем текущую дату и форматируем её
+        const currentDate = new Date().toLocaleDateString("ru-RU").replace(/\./g, '_'); // форматирование "dd_mm_yyyy"
+        
+        // Включаем дату в имя файла
+        const filePath = path.resolve(`order_${username}_${currentDate}.xlsx`);
         XLSX.writeFile(workbook, filePath);
 
         // Отправка файла в Telegram
