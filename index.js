@@ -4,12 +4,10 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
 import UserModel from './models/user.js'; // убедитесь, что путь к модели корректен
-import { fileURLToPath } from 'url';
 import data from './data.json'assert { type: "json" };
 import cors from 'cors'
 import nodemailer from 'nodemailer';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+
 import XLSX from 'xlsx';
 import fs from 'fs';
 import path from 'path';
@@ -418,62 +416,6 @@ app.put('/:username/basket/:index', async (req, res) => {
 
 
 
-app.use(express.static(path.join(__dirname, 'client', 'build')));
-
-// Список валидных маршрутов вашего SPA
-const validRoutes = [
-  '/',
-  '/catalog',
-  '/register',
-  '/login',
-  '/about',
-  '/contact',
-  '/dashboard',
-  '/basket',
-  '/catalog/:article' // для динамических маршрутов
-];
-
-app.get('*', (req, res, next) => {
-  // API запросы пропускаем дальше
-  if (req.path.startsWith('/api')) return next();
-  
-  // Статические файлы (css, js, изображения и т.д.)
-  if (req.path.split('/').pop().includes('.')) {
-    return res.sendFile(path.join(__dirname, 'client', 'build', req.path), (err) => {
-      if (err) res.status(404).send('Not found');
-    });
-  }
-  
-  // Проверяем, есть ли запрошенный путь в валидных маршрутах
-  const isRouteValid = validRoutes.some(route => {
-    if (route.includes(':')) {
-      // Для динамических маршрутов (например /catalog/:article)
-      const baseRoute = route.split(':')[0];
-      return req.path.startsWith(baseRoute);
-    }
-    return route === req.path;
-  });
-  
-  if (isRouteValid) {
-    return res.sendFile(path.join(__dirname, 'client', 'build', 'index.html'));
-  }
-  
-  // Все остальные случаи - 404
-  res.status(404).send('Not found');
-});
-
-// Обработка API 404
-app.use((req, res) => {
-  if (req.path.startsWith('/api')) {
-    res.status(404).json({ error: 'Not found' });
-  }
-});
-
-// Обработка ошибок
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Server error' });
-});
 
 const PORT = process.env.PORT || 4445;
 app.listen(PORT, '0.0.0.0', () => {
