@@ -110,9 +110,10 @@ app.post('/api/send-order', async (req, res) => {
 
         res.json({ success: true });
     } catch (error) {
-        console.error(error);
-        res.json({ success: false, message: 'Ошибка при отправке заказа' });
+        console.error('Error in send-order:', error);
+        res.status(500).json({ success: false, message: 'Ошибка при отправке заказа' });
     }
+    
 });
 
 // app.delete('/:email/basket', async (req, res) => {
@@ -417,7 +418,32 @@ app.put('/:username/basket/:index', async (req, res) => {
 
 
 
+
+app.use(express.static(path.join(__dirname, 'client', 'build')));
+
+
+app.get('*', (req, res, next) => { 
+  if (!req.path.startsWith('/api')) {
+    res.sendFile(path.join(__dirname, 'client', 'build', 'index.html'));
+  } else {
+    next(); 
+  }
+});
+
+
+app.use((req, res) => {
+  if (req.path.startsWith('/api')) {
+    res.status(404).json({ error: 'Not found' });
+  }
+  
+});
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Server error' });
+});
+
 const PORT = process.env.PORT || 4445;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server is running on port ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
