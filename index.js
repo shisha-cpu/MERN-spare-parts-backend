@@ -4,10 +4,12 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
 import UserModel from './models/user.js'; // убедитесь, что путь к модели корректен
+import { fileURLToPath } from 'url';
 import data from './data.json'assert { type: "json" };
 import cors from 'cors'
 import nodemailer from 'nodemailer';
-
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import XLSX from 'xlsx';
 import fs from 'fs';
 import path from 'path';
@@ -412,7 +414,6 @@ app.put('/:username/basket/:index', async (req, res) => {
         res.status(500).json({ message: 'Ошибка при обновлении количества товара', error });
     }
 });
-
 
 
 
