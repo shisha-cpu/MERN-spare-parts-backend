@@ -417,27 +417,58 @@ app.put('/:username/basket/:index', async (req, res) => {
 
 
 
-
-
 app.use(express.static(path.join(__dirname, 'client', 'build')));
 
+// Список валидных маршрутов вашего SPA
+const validRoutes = [
+  '/',
+  '/catalog',
+  '/register',
+  '/login',
+  '/about',
+  '/contact',
+  '/dashboard',
+  '/basket',
+  '/catalog/:article' // для динамических маршрутов
+];
 
-app.get('*', (req, res, next) => { 
-  if (!req.path.startsWith('/api')) {
-    res.sendFile(path.join(__dirname, 'client', 'build', 'index.html'));
-  } else {
-    next(); 
+app.get('*', (req, res, next) => {
+  // API запросы пропускаем дальше
+  if (req.path.startsWith('/api')) return next();
+  
+  // Статические файлы (css, js, изображения и т.д.)
+  if (req.path.split('/').pop().includes('.')) {
+    return res.sendFile(path.join(__dirname, 'client', 'build', req.path), (err) => {
+      if (err) res.status(404).send('Not found');
+    });
   }
+  
+  // Проверяем, есть ли запрошенный путь в валидных маршрутах
+  const isRouteValid = validRoutes.some(route => {
+    if (route.includes(':')) {
+      // Для динамических маршрутов (например /catalog/:article)
+      const baseRoute = route.split(':')[0];
+      return req.path.startsWith(baseRoute);
+    }
+    return route === req.path;
+  });
+  
+  if (isRouteValid) {
+    return res.sendFile(path.join(__dirname, 'client', 'build', 'index.html'));
+  }
+  
+  // Все остальные случаи - 404
+  res.status(404).send('Not found');
 });
 
-
+// Обработка API 404
 app.use((req, res) => {
   if (req.path.startsWith('/api')) {
     res.status(404).json({ error: 'Not found' });
   }
-  
 });
 
+// Обработка ошибок
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Server error' });
