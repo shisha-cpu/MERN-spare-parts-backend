@@ -110,10 +110,9 @@ app.post('/api/send-order', async (req, res) => {
 
         res.json({ success: true });
     } catch (error) {
-        console.error('Error in send-order:', error);
-        res.status(500).json({ success: false, message: 'Ошибка при отправке заказа' });
+        console.error(error);
+        res.json({ success: false, message: 'Ошибка при отправке заказа' });
     }
-    
 });
 
 // app.delete('/:email/basket', async (req, res) => {
@@ -417,7 +416,8 @@ app.put('/:username/basket/:index', async (req, res) => {
 
 
 
+
 const PORT = process.env.PORT || 4445;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server is running on port ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
