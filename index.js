@@ -70,7 +70,8 @@ app.post('/register',
 );
 app.post('/api/send-order', async (req, res) => { 
     const { username, phone, email, orderDetails, totalOrderSum } = req.body;
-
+    console.log(orderDetails);
+    
     try {
         // Создание Excel-файла
         const excelData = [
@@ -96,7 +97,7 @@ app.post('/api/send-order', async (req, res) => {
 
         // Отправка файла в Telegram
         const botToken = '6905722948:AAFcLUxKVCJ1tIF03S8l2xLbjo50buyYYoU';
-        const chatId = '1137493485';
+        const chatId = '7360093891';
         const formData = new FormData();
         formData.append("chat_id", chatId);
         formData.append("document", fs.createReadStream(filePath));
