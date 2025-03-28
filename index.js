@@ -97,7 +97,7 @@ app.post('/api/send-order', async (req, res) => {
 
         // Отправка файла в Telegram
         const botToken = '6905722948:AAFcLUxKVCJ1tIF03S8l2xLbjo50buyYYoU';
-        const chatId = '7360093891';
+        const chatId = '736009389';
         const formData = new FormData();
         formData.append("chat_id", chatId);
         formData.append("document", fs.createReadStream(filePath));
